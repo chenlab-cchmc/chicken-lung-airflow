@@ -11,8 +11,8 @@ library(EnhancedVolcano)
 library(SeuratWrappers)
 library(scCustomize)
 
-#####FIGURE 4#####
-#object to make fig 4A
+#####FIGURE 5#####
+#object to make fig 5A
 E13_2<-readRDS(file="/Users/knger/Downloads/E13_Chicken_Analysis/pbmc.R")
 DefaultAssay(E13_2) <- "RNA"
 
@@ -40,21 +40,6 @@ DimPlot(pbmc, label=F)
 DefaultAssay(pbmc) <- "RNA"
 VlnPlot(pbmc, features = c("CDH1","CDH5","PTPRC","COL3A1","PCNA"))
 
-#endo
-Cluster_Highlight_Plot(seurat_object = pbmc, cluster_name = c("11"), highlight_color = "#6e016b",
-                       background_color = "lightgray")
-
-#immune
-Cluster_Highlight_Plot(seurat_object = pbmc, cluster_name = c("8","12"), highlight_color = "#cb181d",
-                       background_color = "lightgray")
-
-#epi 
-Cluster_Highlight_Plot(seurat_object = pbmc, cluster_name = c("0","1","2","5","6","7"), highlight_color = "#41ab5d",
-                       background_color = "lightgray")
-#mes
-Cluster_Highlight_Plot(seurat_object = pbmc, cluster_name = c("3","4","9","10","13","14"), highlight_color = "#225ea8",
-                       background_color = "lightgray")
-
 
 pbmc@meta.data$cell_type <- pbmc@meta.data$seurat_clusters
 
@@ -72,7 +57,7 @@ Stacked_VlnPlot(seurat_object = pbmc, features = c("CDH1","COL3A1","PTPRC","CDH5
                 colors_use = c("#41ab5d","#225ea8","#cb181d","#6e016b"), split.by = "cell_type")
 
 
-#read epithelial only data for the rest of figure 4
+#read epithelial only data for the rest of figure 5
 E13<-readRDS(file="/Users/knger/Downloads/E13_Chicken_Analysis/epi.R")
 DefaultAssay(E13) <- "RNA"
 
@@ -129,21 +114,21 @@ DimPlot(epi, label=F, group.by = "cell_type")
 
 
 
-#make umap for cell types for fig 4B
+#make umap for cell types for fig 5B
 DimPlot_scCustom(E13, reduction="umap", colors_use = c("#0cb702","#0571b0","#ca0020","#ed68ed"),label = F)
 
-#make heatmap for fig 4C
+#make heatmap for fig 5C
 Idents(E13) <- "cell_type"
 top25_13 <- FindAllMarkers(E13, only.pos = TRUE, min.pct = 0.05, logfc.threshold = 0.05)
 tmp_13 <- group_by(top25_13, cluster) %>% top_n(n=20, wt=avg_log2FC)
 DoHeatmap(E13, features = tmp_13$gene, group.by = "cell_type", group.colors = c("#0cb702","#0571b0","#ca0020","#ed68ed")) + NoLegend()
 
-#make featureplots for fig 4D
-FeaturePlot_scCustom(seurat_object = epi, colors_use = viridis_inferno_dark_high, features = "TOP2A")
+#make featureplots for fig 5D
+FeaturePlot_scCustom(seurat_object = epi, colors_use = viridis_inferno_dark_high, features = "CLDN10")
 
-FeaturePlot(epi, features="NKX2-1", split.by="orig.ident", cols = c("lightgrey", "red"))
+FeaturePlot(epi, features="CLDN10", split.by="orig.ident", cols = c("lightgrey", "red"))
 
-#make scatterplot for fig 4E
+#make scatterplot for fig 5E
 # Load libraries
 library(tidyverse)
 library(cowplot)
@@ -164,7 +149,7 @@ library(SeuratObject)
 chicken <- readRDS("/Users/rnayak/Downloads/E13 2.rds")
 mouse <- readRDS("/Users/rnayak/Downloads/E15.rds")
 chickmouse.list <- list(chicken, mouse)
-chickmouse.features <- SelectIntegrationFeatures(object.list = chickmouse.list)
+chickmouse.features <- SelectIntegratichionFeatures(object.list = chickmouse.list)
 chickmouse.anchors <- FindIntegrationAnchors(object.list = chickmouse.list, anchor.features = chickmouse.features)
 #integrate
 chickmouse <- IntegrateData(anchorset = chickmouse.anchors)
@@ -174,126 +159,65 @@ chickmouse <- ScaleData(chickmouse) %>% RunPCA(npcs = 30) %>% RunUMAP(dims=1:20)
 chickmouse <- readRDS("/Users/rnayak/OneDrive - UTHealth Houston/kamryn/chickmouse.rds")
 DefaultAssay(chickmouse) <- "RNA"
 
-# Aggregate expression data by cell type and genotype ## ln CPM from here  https://github.com/satijalab/seurat/issues/2496
-avg_chickmouse_expr <- AggregateExpression(chickmouse, group.by = c("cell_type", "geno"), 
-                                           assays = "RNA", normalization.method = "LogNormalize", 
-                                           scale.factor = 1e6) 
-
-# Convert aggregated expression to a Seurat object
+#####Aggregate expression data by cell type and genotype #####
+#figured out the ln CPM from here  https://github.com/satijalab/seurat/issues/2496
+# Convert aggregated expression to a Seurat object #see more here about normalization help("NormalizeData")
 avg_chickmouse_expr_sobj <- AggregateExpression(chickmouse, group.by = c("cell_type", "geno"), 
                                                 assays = "RNA", normalization.method = "LogNormalize", 
-                                                scale.factor = 1e6, return.seurat = TRUE)
-
-log_data <- GetAssayData(avg_chickmouse_expr_sobj)
-#log2_data <- log(expm1(log_data) + 1, 2)
-
-# Extract average expression for chicken and mouse SOX9 cells 
+                                                scale.factor = 1e6, return.seurat = TRUE) ##Log Normalize - Feature counts for each cell are divided by the total counts for that cell and multiplied by the scale.factor. This is then natural-log transformed using log1p
+##scale factor - scale.factor = 1e6 For counts per million (CPM) 
+sox9_log_data <- GetAssayData(avg_chickmouse_expr_sobj)
+#### Extract average expression for chicken and mouse SOX9 cells ####
 ###calculated for all cell types so you can just start from here for other cells 
-chicken_sox9_expr <- log_data[,"SOX9_E13 Chicken"]
-mouse_sox9_expr <- log_data[,"SOX9_E15 Mouse"]
+chicken_sox9_expr <- sox9_log_data[,"SOX9_E13 Chicken"]
+mouse_sox9_expr <- sox9_log_data[,"SOX9_E15 Mouse"]
 
-# Combine into a data frame 
+#### Combine into a data frame ####
 chickmouse_sox9_exp_df <- data.frame(
   gene = rownames(avg_chickmouse_expr_sobj$RNA),
   chicken_exp = as.numeric(chicken_sox9_expr),
   mouse_exp = as.numeric(mouse_sox9_expr)
 )
 
-#remove rows with 0 in both
+####remove rows with 0 in both ###
 chickmouse_sox9_exp_df <- chickmouse_sox9_exp_df[!apply(chickmouse_sox9_exp_df[, 2:3]==0, 1, all),]
-
-
-divergent_genes <- chickmouse_sox9_exp_df %>%
-  filter((chicken_exp / (mouse_exp + 1) > 2.5) | (mouse_exp / (chicken_exp + 1) > 2.5))
-# Add the above information to the dataframe
-chickmouse_sox9_exp_df$divergent <- ifelse(chickmouse_sox9_exp_df$gene %in% divergent_genes$gene, "divergent", "non-divergent")
-
-# Adjust the axis limits
-x_limit <- max(chickmouse_sox9_exp_df$chicken_exp, na.rm = TRUE)
-y_limit <- max(chickmouse_sox9_exp_df$mouse_exp, na.rm = TRUE)
-##remove rownames with ENSG
-chickmouse_sox9_exp_df <- chickmouse_sox9_exp_df[!grepl("ENSG", chickmouse_sox9_exp_df$gene),]
-# Plot the scatter plot
-ggplot(chickmouse_sox9_exp_df, aes(x = mouse_exp, y = chicken_exp)) +
-  geom_point(aes(color = divergent), alpha = 1) +
-  geom_text_repel(data = subset(chickmouse_sox9_exp_df, divergent == "divergent"),
-                  aes(label = gene), size = 3, box.padding = 0.3) +
-  scale_color_manual(values = c("non-divergent" = "grey", "divergent" = "darkred")) +
-  labs(x = "Expression in Mouse (ln(CPM + 1))",
-       y = "Expression in Chicken (ln(CPM + 1))",
-       subtitle = paste("R =", round(cor(chickmouse_sox9_exp_df$mouse_exp, chickmouse_sox9_exp_df$chicken_exp, method = "pearson"), 2))) +
-  xlim(0, x_limit) +
-  ylim(0, y_limit) +
-  theme_minimal()
-
-goi <-  c("CPED1", "ROBO2", "TFF2", "BEX1", "BEX3", "BEX4","CLDN6","NKX2-1","SOX9")
-#SOX9_genes <- c("CPED1", "ROBO2", "TFF2", "BEX1", "BEX3", "BEX4","CLDN6","NKX2-1","SOX9")
-chickmouse_sox9_exp_df$GOI <- ifelse(chickmouse_sox9_exp_df$gene %in% goi, "goi", "other")
-# Create a new column for highlight- add both goi and divergent info
-chickmouse_sox9_exp_df$Highlight <- "other" 
-chickmouse_sox9_exp_df$Highlight[chickmouse_sox9_exp_df$gene %in% goi] <- "goi"
-chickmouse_sox9_exp_df$Highlight[chickmouse_sox9_exp_df$gene %in% divergent_genes$gene] <- "divergent"
-# if you need prioritize labelling of goi over divergent in case of overlap
-chickmouse_sox9_exp_df$Highlight[chickmouse_sox9_exp_df$gene %in% goi & chickmouse_sox9_exp_df$gene %in% divergent_genes$gene] <- "goi"
-highlight_colors <- c("other" = "grey", "goi" = "black", "divergent" = "darkgreen")
-
-#highlight diveregent and goi
-ggplot(chickmouse_sox9_exp_df, aes(x = mouse_exp, y = chicken_exp, color = Highlight)) +
-  geom_point(alpha = 1) +
-  scale_color_manual(values = highlight_colors) +
-  geom_text_repel(data = subset(chickmouse_sox9_exp_df, Highlight == "divergent", color = "darkred"),
-                  aes(label = gene), size = 3, box.padding = 0.3) + 
-  geom_text_repel(data = subset(chickmouse_sox9_exp_df, Highlight == "goi"),
-                  aes(label = gene), size = 3, box.padding = 0.3, color = "darkgreen",  max.overlaps = 1000) +  
-  labs(x = "Expression in Mouse (ln(CPM + 1))",
-       y = "Expression in Chicken (ln(CPM + 1))",
-       subtitle = paste("R =", round(cor(chickmouse_sox9_exp_df$mouse_exp, chickmouse_sox9_exp_df$chicken_exp, method = "pearson"), 2))) +
-  xlim(0, x_limit) +
-  ylim(0, y_limit) +
-  theme_minimal() 
-
-# Identify divergent genes, I set the cutoff to 2.5 here
-divergent_genes <- chickmouse_sox9_exp_df %>%
-  filter((chicken_exp / (mouse_exp + 1) > 1.5) | (mouse_exp / (chicken_exp + 1) > 2.5))
-convergent_genes <- chickmouse_sox9_exp_df %>%
-  filter(chicken_exp > 2.5 & mouse_exp > 2.5)
-# Add the above information to the dataframe
-chickmouse_sox9_exp_df$divergent <- ifelse(chickmouse_sox9_exp_df$gene %in% divergent_genes$gene, "divergent", "non-divergent")
-chickmouse_sox9_exp_df$convergent <- ifelse(chickmouse_sox9_exp_df$gene %in% convergent_genes$gene, "convergent", "non-convergent")
-# Adjust the axis limits
-x_limit <- max(chickmouse_sox9_exp_df$chicken_exp, na.rm = TRUE)
-y_limit <- max(chickmouse_sox9_exp_df$mouse_exp, na.rm = TRUE)
-##remove rownames with ENSG
+## Remove rows with ENSG gene names
 chickmouse_sox9_exp_df <- chickmouse_sox9_exp_df[!grepl("ENSG", chickmouse_sox9_exp_df$gene),]
 
-goi <-  c("CPED1", "ROBO2", "TFF2", "BEX1", "BEX3", "BEX4","CLDN6","NKX2-1","SOX9")
-#SOX9_genes <- c("CPED1", "ROBO2", "TFF2", "BEX1", "BEX3", "BEX4","CLDN6","NKX2-1","SOX9")
-chickmouse_sox9_exp_df$GOI <- ifelse(chickmouse_sox9_exp_df$gene %in% goi, "goi", "other")
-# Create a new column for highlight- add both goi and divergent info
-chickmouse_sox9_exp_df$Highlight <- "other" 
-chickmouse_sox9_exp_df$Highlight[chickmouse_sox9_exp_df$gene %in% goi] <- "goi"
-chickmouse_sox9_exp_df$Highlight[chickmouse_sox9_exp_df$gene %in% divergent_genes$gene] <- "divergent"
-chickmouse_sox9_exp_df$Highlight[chickmouse_sox9_exp_df$gene %in% convergent_genes$gene] <- "convergent"
-# if you need prioritize labelling of goi over divergent in case of overlap
-chickmouse_sox9_exp_df$Highlight[chickmouse_sox9_exp_df$gene %in% goi & chickmouse_sox9_exp_df$gene %in% divergent_genes$gene] <- "goi"
-highlight_colors <- c("other" = "grey", "goi" = "black", "divergent" = "darkgreen", "convergent" = "grey")
+####Filtering out genes other than shared genes between the chick and mouse and plotting again #####
+e15_mouse <- read.csv('E15_mouse.csv', header = F)
+e15_chick <- read.csv('E15_chick.csv', header =F)
+e15_mouse <- as.character(e15_mouse$V1)
+e15_chick <- as.character(e15_chick$V1)
+e15_chickmouse_shared <- intersect(e15_mouse, e15_chick) ##9754 genes left
 
-#highlight diveregent and goi
-ggplot(chickmouse_sox9_exp_df, aes(x = mouse_exp, y = chicken_exp, color = Highlight)) +
+#### Filter the data frame to keep only shared genes ####
+chickmouse_sox9_exp_filt_df <- chickmouse_sox9_exp_df %>%
+  filter(gene %in% e15_chickmouse_shared)
+
+#### Highlight genes of interest (GOI) ####
+goi <- c("CPED1", "ROBO2", "TFF2", "BEX1", "BEX3", "BEX4", "CLDN6", "NKX2-1", "SOX9", "SFTPC", "RPS17", "SLIT3",
+         "SELENOW", "MIF", "NME1", "DYNLL1")
+chickmouse_sox9_exp_filt_df$GOI <- ifelse(chickmouse_sox9_exp_filt_df$gene %in% goi, "goi", "other")
+
+#### Update the axis limits based on filtered data ####
+x_limit <- max(chickmouse_sox9_exp_filt_df$chicken_exp, na.rm = TRUE)
+y_limit <- max(chickmouse_sox9_exp_filt_df$mouse_exp, na.rm = TRUE)
+highlight_colors <- c("other" = "grey", "goi" = "black")
+
+#### Plot the data ####
+ggplot(chickmouse_sox9_exp_filt_df, aes(x = mouse_exp, y = chicken_exp, color = GOI)) +
   geom_point(alpha = 1) +
   scale_color_manual(values = highlight_colors) +
-  geom_text_repel(data = subset(chickmouse_sox9_exp_df, Highlight == c("divergent", "convergent")),
-                  aes(label = gene), size = 3, box.padding = 0.3) + 
-  geom_text_repel(data = subset(chickmouse_sox9_exp_df, Highlight == "goi"),
-                  aes(label = gene), size = 3, box.padding = 0.3, color = "black", max.overlaps = 1000) +  
-  labs(x = "Expression in Mouse (ln(CPM + 1))",
-       y = "Expression in Chicken (ln(CPM + 1))",
-       subtitle = paste("R =", round(cor(chickmouse_sox9_exp_df$mouse_exp, chickmouse_sox9_exp_df$chicken_exp, method = "pearson"), 2))) +
+  geom_text_repel(data = subset(chickmouse_sox9_exp_filt_df, GOI == "goi"),
+                  aes(label = gene), size = 3, box.padding = 0.3, color = "black", max.overlaps = 10000) +  
+  labs(x = "Expression in Mouse (ln(CPM))",
+       y = "Expression in Chicken (ln(CPM))",
+       subtitle = paste("R =", round(cor(chickmouse_sox9_exp_filt_df$mouse_exp, chickmouse_sox9_exp_filt_df$chicken_exp, method = "pearson"), 2))) +
   xlim(0, x_limit) +
-  ylim(0, y_limit) +
-  theme_minimal() 
+  ylim(0, 3.5)
 
-#####FIGURE 5#####
+#####FIGURE 6#####
 E20chicken.data <- Read10X(data.dir = "/Users/knger/Box/scRNA-seq/E20-Chicken-RNA/outs/galGal6/")
 
 E20 = CreateSeuratObject(counts = E20chicken.data, project = "E20 Chicken", min.cells = 3, min.features = 200) %>% PercentageFeatureSet(pattern = "^mt-", col.name = "percent.mt") %>% NormalizeData() %>% FindVariableFeatures() %>% ScaleData() %>% RunPCA(verbose=F)
@@ -358,20 +282,20 @@ E20$geno <- plyr::mapvalues(x = E20$geno,
 Idents(E20) <- "cell_type"
 table(E20@active.ident)
 
-#make umap of celltypes for fig 5B
+#make umap of celltypes for fig 6B
 DimPlot_scCustom(E20, reduction="umap", colors_use = c("#dd3497","#ca0020","#66bd63"),label = F)
 
-#make heatmap for fig 5C
-top25 <- FindAllMarkers(E20, only.pos = TRUE, min.pct = 0.05, logfc.threshold = 0.05)
-tmp <- group_by(top25, cluster) %>% top_n(n=20, wt=avg_log2FC)
+#make heatmap for fig 6C
+top25_20<- FindAllMarkers(E20, only.pos = TRUE, min.pct = 0.05, logfc.threshold = 0.05)
+tmp_20 <- group_by(top25, cluster) %>% top_n(n=20, wt=avg_log2FC)
 DoHeatmap(E20, features = tmp$gene, group.by = "cell_type", group.colors = c("#dd3497","#ca0020","#66bd63"))+ NoLegend()  #+ scale_fill_gradientn(colors = c("#7b3294", "white", "#008837"))
 
 write.csv(top25, file = "/Users/knger/Box/Chicken paper/Single cell plots/e20-celltype-markers.csv")
 
-#make featureplots for fig 5D
+#make featureplots for fig 6D
 FeaturePlot_scCustom(seurat_object = E20, features = "PCNA", colors_use = viridis_inferno_dark_high)
 
-#make volcano plot for fig 5E
+#make volcano plot for fig 6E
 ## Krt14 only 
 VlnPlot(E13, features = c("SOX9","VEGFA","NKX2-1", "LAMP3", "ASCL1", "KRT14"))
 VlnPlot(E20, features = c("SOX9","VEGFA","NKX2-1", "LAMP3", "ASCL1", "KRT14"))
@@ -405,9 +329,7 @@ E20_krt14 <- subset(E20_krt14, idents=c(2))
 E20_krt14 <- FindVariableFeatures(E20_krt14)
 E20_krt14 <- ScaleData(E20_krt14)
 E20_krt14 <- RunPCA (E20_krt14, npcs=30) %>% RunUMAP (dims=1:30) %>% FindNeighbors() %>% FindClusters()
-#DimPlot(E15, label=F, group.by = "orig.ident")
 DimPlot(E20_krt14, label=T)
-#VlnPlot(E20_krt14, features = c("CDH1","CDH5","PTPRC","COL3A1"))
 VlnPlot(E20_krt14, features = c("SOX9","VEGFA","NKX2-1", "LAMP3", "ASCL1", "KRT14"))
 
 
@@ -433,7 +355,6 @@ integrated_krt14$geno.cell_type <- paste(integrated_krt14$geno,integrated_krt14$
 Idents(integrated_krt14) <- "geno.cell_type"
 table(Idents(integrated_krt14))
 diffvol <- FindMarkers(integrated_krt14, ident.1 = "E20 Chicken_KRT14", ident.2 = "E13 Chicken_KRT14", min.pct = 0.05, logfc.threshold = 0.05, pseudocount.use = 0.001)
-#diffvol <- diffvol[!(rownames(diffvol) %in% boring.genes),]
 EnhancedVolcano(diffvol, lab = rownames(diffvol), x='avg_log2FC', y='p_val_adj', FCcutoff = 1, pCutoff = 10e-6, 
                 xlim=c(-25,25), 
                 gridlines.major = F, gridlines.minor = F, xlab = "ln(fold change)", colAlpha = 1,
@@ -442,7 +363,7 @@ EnhancedVolcano(diffvol, lab = rownames(diffvol), x='avg_log2FC', y='p_val_adj',
 
 write.csv(diffvol, file = "/Users/knger/Box/Chicken Paper/Single cell plots/krt-volcano.csv")
 
-#for fig 5A
+#for fig 6A
 #Run 297-299 and then immediately name celltypes
 #subset out blood
 E20 <- subset(E20, idents=c(1:14,16:18))
@@ -451,7 +372,7 @@ E20 <- ScaleData(E20)
 E20 <- RunPCA (E20, npcs=30) %>% RunUMAP (dims=1:30) %>% FindNeighbors() %>% FindClusters()
 #DimPlot(E15, label=F, group.by = "orig.ident")
 DimPlot(E20, label=T)
-VlnPlot(E20, features = c("CDH1","CDH5","PTPRC","COL3A1"))
+VlnPlot(E20, features = c("CDH1","CDH5","PTPRC","COL3A1","HPSE"))
 #subset out low count
 E20 <- subset(E20, idents=c(0:8,10:17))
 E20 <- FindVariableFeatures(E20)
@@ -480,11 +401,13 @@ VlnPlot(E20, features = c("CDH1","CDH5","PTPRC","COL3A1"))
 top5 <- FindAllMarkers(E20, min.pct = 0.05, logfc.threshold = 0.05)
 tmp <- group_by(top5, cluster) %>% top_n(n=25, wt=avg_log2FC)
 
+
+Idents(E20) <- "seurat_clusters"
 E20@meta.data$cell_type <- E20@meta.data$seurat_clusters
 
 E20@meta.data$cell_type <- plyr::mapvalues(x = E20@meta.data$cell_type,
                                            from = c("0","1","2","3","4","5","6","7","8","9","10","11","12","13"),
-                                           to = c("Mes","Epi","Epi","Epi","Endo","Mes","Epi","Endo","Mes","Imm","Mes","Endo","Mes","Endo"))
+                                           to = c("Blood","Epi","Epi","Epi","Endo","Mes","Epi","Endo","Blood","Imm","Mes","Endo","Mes","Endo"))
 
 E20$geno <- substr(colnames(E20@assays$RNA@counts), 18, 18) #cell barcode
 
@@ -495,32 +418,17 @@ E20$geno <- plyr::mapvalues(x = E20$geno,
 Idents(E20) <- "cell_type"
 table(E20@active.ident)
 
-#endo
-Cluster_Highlight_Plot(seurat_object = E20, cluster_name = c("Endo"), highlight_color = "#6e016b",
-                       background_color = "lightgray")
 
-#immune
-Cluster_Highlight_Plot(seurat_object = E20, cluster_name = c("Imm"), highlight_color = "#cb181d",
-                       background_color = "lightgray")
+Stacked_VlnPlot(seurat_object = E20, features = c("HBBA","CDH1","CDH5","COL3A1","PTPRC"), x_lab_rotate = TRUE,
+                colors_use = c("#67001f","#41ab5d","#6e016b","#225ea8","#cb181d"), split.by = "cell_type")
 
-#epi 
-Cluster_Highlight_Plot(seurat_object = E20, cluster_name = c("Epi"), highlight_color = "#41ab5d",
-                       background_color = "lightgray")
+DimPlot_scCustom(seurat_object = E20, colors_use = c("#67001f","#41ab5d","#6e016b","#225ea8","#cb181d"), label = F)
 
-#mes
-Cluster_Highlight_Plot(seurat_object = E20, cluster_name = c("Mes"), highlight_color = "#225ea8",
-                       background_color = "lightgray")
-
-
-Stacked_VlnPlot(seurat_object = E20, features = c("CDH1","CDH5","COL3A1","PTPRC"), x_lab_rotate = TRUE,
-                colors_use = c("#41ab5d","#225ea8","#cb181d","#6e016b"), split.by = "cell_type")
-
-DimPlot_scCustom(seurat_object = E20, colors_use = c("#225ea8","#41ab5d","#6e016b","#cb181d"), label = F)
 
 
 saveRDS(E20, file="/Users/knger/Box/scRNA-seq/E20-Chicken-RNA/E20_allcells.rds")
 
-#for fig 5G
+#for fig 6H
 #for monocle
 library(monocle3)
 
@@ -597,12 +505,13 @@ plot_cells(cds,
            label_branch_points=FALSE,
            graph_label_size=1.5, label_roots=F)
 
-# Add module score chicken E13E20
+# Add module score chicken E13E20 for Fig 6H
 DefaultAssay(integrated_m) <- "RNA"
 
-AT1 <- subset(tmp, cluster == "AT1")
-AT2 <- subset(tmp, cluster == "AT2")
-KRT14 <- subset(tmp, cluster == "KRT14")
+AT1 <- subset(tmp_20, cluster == "AT1")
+AT2 <- subset(tmp_20, cluster == "AT2")
+KRT14 <- subset(tmp_20, cluster == "KRT14")
+AT0 <- subset(tmp, cluster == "AT0")
 
 AT1.list <- list(AT1$gene)
 integrated_m <- AddModuleScore(integrated_m, features = AT1.list, name = "AT1")
@@ -615,13 +524,286 @@ integrated_m <- AddModuleScore(integrated_m, features = AT2.list, name = "AT2")
 KRT14.list <- list(KRT14$gene)
 integrated_m <- AddModuleScore(integrated_m, features = KRT14.list, name = "KRT14")
 
+AT0.list <- list(AT0$gene)
+integrated_m <- AddModuleScore(integrated_m, features = AT0.list, name = "AT0")
+
 FeaturePlot_scCustom(seurat_object = integrated_m, features = "AT11")
 
 FeaturePlot_scCustom(seurat_object = integrated_m, features = "AT21")
 
 FeaturePlot_scCustom(seurat_object = integrated_m, features = "KRT141")
 
-#for Fig S4C
+FeaturePlot_scCustom(seurat_object = integrated_m, features = "AT01")
+
+#for Fig 6E
+###AT1 AT2 chicken vs mouse####
+e19e20 <- readRDS("/Users/rnayak/OneDrive - UTHealth Houston/kamryn/e19e20.rds")
+DefaultAssay(e19e20) <- "RNA"
+
+# Convert aggregated expression to a Seurat object
+avg_e19e20_expr_sobj <- AggregateExpression(e19e20, group.by = c("cell_type", "geno"), 
+                                            assays = "RNA", normalization.method = "LogNormalize", 
+                                            scale.factor = 1e6, return.seurat = TRUE)
+
+e19e20_log_data <- GetAssayData(avg_e19e20_expr_sobj)
+
+# Extract average expression for chicken and mouse AT1 and AT2 cells 
+chicken_AT1_expr <- e19e20_log_data[,"AT1_E20 Chicken"]
+mouse_AT1_expr <- e19e20_log_data[,"AT1_E19 Mouse"]
+
+chicken_AT2_expr <- e19e20_log_data[,"AT2_E20 Chicken"]
+mouse_AT2_expr <- e19e20_log_data[,"AT2_E19 Mouse"]
+
+# Combine into a data frame 
+e19e20_AT1_exp_df <- data.frame(
+  gene = rownames(avg_e19e20_expr_sobj$RNA),
+  chicken_exp = as.numeric(chicken_AT1_expr),
+  mouse_exp = as.numeric(mouse_AT1_expr)
+)
+
+e19e20_AT2_exp_df <- data.frame(
+  gene = rownames(avg_e19e20_expr_sobj$RNA),
+  chicken_exp = as.numeric(chicken_AT2_expr),
+  mouse_exp = as.numeric(mouse_AT2_expr)
+)
+#remove rows with 0 in both
+e19e20_AT1_exp_df <- e19e20_AT1_exp_df[!apply(e19e20_AT1_exp_df[, 2:3]==0, 1, all),]
+e19e20_AT2_exp_df <- e19e20_AT2_exp_df[!apply(e19e20_AT2_exp_df[, 2:3]==0, 1, all),]
+##remove rownames with ENSG
+e19e20_AT1_exp_df <- e19e20_AT1_exp_df[!grepl("ENSG", e19e20_AT1_exp_df$gene),]
+e19e20_AT2_exp_df <- e19e20_AT2_exp_df[!grepl("ENSG", e19e20_AT2_exp_df$gene),]
+
+
+####Filtering out genes other than shared genes between the chick and mouse and plotting again #####
+e19_mouse <- read.csv('E19_mouse.csv', header = F)
+e19_chick <- read.csv('E19_chick.csv', header =F)
+e19_chickmouse_shared <- intersect(e19_mouse, e19_chick) ##9548 genes left
+colnames(e19_chickmouse_shared) <- 'gene'
+e19_chickmouse_shared <- as.character(e19_chickmouse_shared$gene)
+
+#### Filter the data frame to keep only shared genes ####
+e19e20_AT1_exp_filt_df <- e19e20_AT1_exp_df %>%
+  filter(gene %in% e19_chickmouse_shared)
+
+e19e20_AT2_exp_filt_df <- e19e20_AT2_exp_df %>%
+  filter(gene %in% e19_chickmouse_shared)
+
+
+###AT1 GOI
+goi <- c("KRT19", "KRT8", "AGER", "AQP5", "CAV1", "LY6E",
+         "B3GAT2","CYTB", "NKX2-1", "VEGFA", "CDH1", "ACTB", "RPS28")
+e19e20_AT1_exp_filt_df$GOI <- ifelse(e19e20_AT1_exp_filt_df$gene %in% goi, "goi", "other")
+
+goi <- c("LYG2", "SFTPA2", "LYZ1", "LYZ2", "BEX2", "BEX4", "NKX2-1", "CDH1", "SFTPC", "SFTPA1", "RPL29", 
+         "SLC34A2", "FABP5", "DLK1", "RPL39L", "FABP3", "HSPA2")
+e19e20_AT2_exp_filt_df$GOI <- ifelse(e19e20_AT2_exp_filt_df$gene %in% goi, "goi", "other")
+
+x_limit <- max(e19e20_AT2_exp_filt_df$chicken_exp, na.rm = TRUE)
+y_limit <- max(e19e20_AT2_exp_filt_df$mouse_exp, na.rm = TRUE)
+
+#### Plot the data ####
+ggplot(e19e20_AT1_exp_filt_df, aes(x = mouse_exp, y = chicken_exp, color = GOI)) +
+  geom_point(alpha = 1) +
+  scale_color_manual(values = highlight_colors) +
+  geom_text_repel(data = subset(e19e20_AT1_exp_filt_df, GOI == "goi"),
+                  aes(label = gene), size = 3, box.padding = 0.3, color = "black", max.overlaps = 10000) +  
+  labs(x = "Expression in Mouse (ln(CPM))",
+       y = "Expression in Chicken (ln(CPM))",
+       subtitle = paste("R =", round(cor(e19e20_AT1_exp_filt_df$mouse_exp, e19e20_AT1_exp_filt_df$chicken_exp, method = "pearson"), 2))) +
+  xlim(0, x_limit) +
+  ylim(0, y_limit)
+
+ggplot(e19e20_AT2_exp_filt_df, aes(x = mouse_exp, y = chicken_exp, color = GOI)) +
+  geom_point(alpha = 1) +
+  scale_color_manual(values = highlight_colors) +
+  geom_text_repel(data = subset(e19e20_AT2_exp_filt_df, GOI == "goi"),
+                  aes(label = gene), size = 3, box.padding = 0.3, color = "black", max.overlaps = 10000) +  
+  labs(x = "Expression in Mouse (ln(CPM))",
+       y = "Expression in Chicken (ln(CPM))",
+       subtitle = paste("R =", round(cor(e19e20_AT2_exp_filt_df$mouse_exp, e19e20_AT2_exp_filt_df$chicken_exp, method = "pearson"), 2))) +
+  xlim(0, x_limit) +
+  ylim(0, y_limit)
+
+####divergent genes####
+SOX9_divergent_genes <- chickmouse_sox9_exp_filt_df %>%
+  filter((chicken_exp / (mouse_exp + 1) > 2) | (mouse_exp / (chicken_exp + 1) > 2))
+AT2_divergent_genes <- e19e20_AT2_exp_filt_df %>%
+  filter((chicken_exp / (mouse_exp + 1) > 2) | (mouse_exp / (chicken_exp + 1) > 2))
+
+
+#for Fig S5B
+E20_cd45.data <- Read10X(data.dir = "/Users/knger/Downloads/E20-chicken-CD5neg_analysis/outs/galGal6/filtered_feature_bc_matrix")
+E20_cd45 = CreateSeuratObject(counts = E20_cd45.data, project = "E20 Chicken", min.cells = 3, min.features = 200) %>% PercentageFeatureSet(pattern = "^mt-", col.name = "percent.mt") %>% NormalizeData() %>% FindVariableFeatures() %>% ScaleData() %>% RunPCA(verbose=F)
+DefaultAssay(E20_cd45) <- "RNA"
+E20_cd45 <- RunPCA (E20_cd45, npcs=30) %>% RunUMAP (dims=1:30) %>% FindNeighbors() %>% FindClusters()
+DimPlot(E20_cd45, label=T)
+
+FeaturePlot(E20_cd45, features=c("CDH1","CDH5","PTPRC","COL3A1","HBBA"), cols = c("lightgrey", "red"))
+VlnPlot(E20_cd45, features = c("CDH1","CDH5","PTPRC","COL3A1","HBBA","HPSE"))
+
+#subset dbl clusters 4,11,13
+E20_cd45 <- subset(E20_cd45, idents=c(0:3,5:10,12))
+E20_cd45 <- FindVariableFeatures(E20_cd45)
+E20_cd45 <- ScaleData(E20_cd45)
+E20_cd45 <- RunPCA (E20_cd45, npcs=30) %>% RunUMAP (dims=1:30) %>% FindNeighbors() %>% FindClusters()
+DimPlot(E20_cd45, label=T)
+FeaturePlot(E20_cd45, features=c("CDH1","CDH5","PTPRC","COL3A1","HBBA"), cols = c("lightgrey", "red"))
+
+
+#name the cell types
+E20_cd45@meta.data$cell_type <- E20_cd45@meta.data$seurat_clusters
+
+E20_cd45@meta.data$cell_type <- plyr::mapvalues(x = E20_cd45@meta.data$cell_type,
+                                                from = c("0","1","2","3","4","5","6","7","8","9","10","11","12"),
+                                                to = c("blood","blood","endo","blood","mes","mes","mes","mes","epi","endo","endo","blood","endo"))
+
+E20_cd45$geno <- substr(colnames(E20_cd45@assays$RNA@counts), 18, 18) #cell barcode
+
+E20_cd45$geno <- plyr::mapvalues(x = E20_cd45$geno,
+                                 from = "1",
+                                 to = "E20 Chicken")
+
+Idents(E20_cd45) <- "cell_type"
+table(E20_cd45@active.ident)
+
+DimPlot(E20_cd45, label=T)
+DimPlot_scCustom(E20_cd45, reduction="umap", colors_use = c("#67001f","#6e016b","#225ea8","#41ab5d"),label = F)
+
+Stacked_VlnPlot(seurat_object = E20_cd45, features = c("HBBA","CDH1","CDH5","COL3A1","PTPRC"), x_lab_rotate = TRUE,
+                colors_use = c("#67001f","#6e016b","#225ea8","#41ab5d"), split.by = "cell_type")
+#for Fig S5D
 E20_m <- subset(E20, idents= c("AT2", "KRT14"))
 DefaultAssay(E20_m) <- "RNA"
 VlnPlot(E20_m, features = c("KRT14", "LAMP3", "SFTPC"),group.by = "cell_type", cols=c("#e6f5d0","#fcbba1"), pt.size = 0)
+
+#for Fig S5E
+mouse.anchors <- FindIntegrationAnchors(object.list = list(E15,E19), dims = 1:20)
+#9560 anchors, 1822 retained
+mouse_integrated <- IntegrateData(anchorset = mouse.anchors)
+
+DefaultAssay(mouse_integrated) <- "integrated"
+mouse_integrated <- ScaleData(mouse_integrated, verbose = FALSE)
+mouse_integrated <- RunPCA(mouse_integrated, npcs = 30, verbose = FALSE)
+# t-SNE and Clustering
+mouse_integrated <- RunUMAP(mouse_integrated, reduction = "pca", dims = 1:30)
+mouse_integrated <- FindNeighbors(mouse_integrated, reduction = "pca", dims = 1:30)
+mouse_integrated <- FindClusters(mouse_integrated)
+# Visualization
+p1 <- DimPlot(mouse_integrated, reduction = "umap", group.by = "cell_type")
+p2 <- DimPlot(mouse_integrated, reduction = "umap", split.by = "geno")
+plot_grid(p1, p2)
+
+
+DimPlot(mouse_integrated, reduction = "umap", group.by = "cell_type", split.by="geno")
+DimPlot(mouse_integrated, reduction = "umap",group.by = "cell_type", cols=c("#dd3497","#4dac26","#3288bd","#ed68ed","#d73027","#addd8e"))
+
+mouse_integrated$geno.cell_type <- paste(mouse_integrated$geno,mouse_integrated$cell_type,sep = "_")
+Idents(mouse_integrated) <- "geno.cell_type"
+table(mouse_integrated@active.ident)
+
+
+
+# Add module score for revision
+tmp_13<-read.csv(file="/Users/knger/Box/Chicken Paper/CellRef_signature_Epi_2024-11-20.csv")
+tmp_AT0 <-read.csv(file="/Users/knger/Box/Chicken Paper/HLCA_AT0_signature_top50_2024-11-20.csv")
+
+DefaultAssay(E20) <- "RNA"
+head(tmp_13)
+head(tmp_AT0)
+
+table(tmp_13$ï..celltype)
+
+AT1 <- subset(tmp_13, ï..celltype == "AT1")
+AT2 <- subset(tmp_13, ï..celltype == "AT2")
+Basal <- subset(tmp_13, ï..celltype == "Basal")
+Ciliated <- subset(tmp_13, ï..celltype == "Ciliated")
+Deuterosomal <- subset(tmp_13, ï..celltype == "Deuterosomal")
+Ionocyte <- subset(tmp_13, ï..celltype == "Ionocyte")
+MEC <- subset(tmp_13, ï..celltype == "MEC")
+Mucous <- subset(tmp_13, ï..celltype == "Mucous")
+PNEC <- subset(tmp_13, ï..celltype == "PNEC")
+RAS <- subset(tmp_13, ï..celltype == "RAS")
+Secretory <- subset(tmp_13, ï..celltype == "Secretory")
+SMG_Basal <- subset(tmp_13, ï..celltype == "SMG_Basal")
+Tuft <- subset(tmp_13, ï..celltype == "Tuft")
+Goblet <- subset(tmp_13, ï..celltype == "Goblet")
+AT0 <- subset(tmp_AT0, ï..celltype == "AT0")
+Serous <- subset(tmp_13, ï..celltype == "Serous")
+
+
+AT1.list <- list(AT1$gene)
+E20 <- AddModuleScore(E20, features = AT1.list, name = "AT1")
+
+AT2.list <- list(AT2$gene)
+E20 <- AddModuleScore(E20, features = AT2.list, name = "AT2")
+
+Basal.list <- list(Basal$gene)
+E20 <- AddModuleScore(E20, features = Basal.list, name = "Basal")
+
+Ciliated.list <- list(Ciliated$gene)
+E20 <- AddModuleScore(E20, features = Ciliated.list, name = "Ciliated")
+
+Deuterosomal.list <- list(Deuterosomal$gene)
+E20 <- AddModuleScore(E20, features = Deuterosomal.list, name = "Deuterosomal")
+
+Ionocyte.list <- list(Ionocyte$gene)
+E20 <- AddModuleScore(E20, features = Ionocyte.list, name = "Ionocyte")
+
+MEC.list <- list(MEC$gene)
+E20 <- AddModuleScore(E20, features = MEC.list, name = "MEC")
+
+PNEC.list <- list(PNEC$gene)
+E20 <- AddModuleScore(E20, features = PNEC.list, name = "PNEC")
+
+RAS.list <- list(RAS$gene)
+E20 <- AddModuleScore(E20, features = RAS.list, name = "RAS")
+
+Secretory.list <- list(Secretory$gene)
+E20 <- AddModuleScore(E20, features = Secretory.list, name = "Secretory")
+
+SMG_Basal.list <- list(SMG_Basal$gene)
+E20 <- AddModuleScore(E20, features = SMG_Basal.list, name = "SMG_Basal")
+
+Tuft <- list(Tuft$gene)
+E20 <- AddModuleScore(E20, features = Tuft.list, name = "Tuft")
+
+Serous.list <- list(Serous$gene)
+E20 <- AddModuleScore(E20, features = Serous.list, name = "Serous")
+
+AT0.list <- list(AT0$gene)
+E20 <- AddModuleScore(E20, features = AT0.list, name = "AT0")
+
+FeaturePlot_scCustom(seurat_object = E20, features = "AT11")
+
+FeaturePlot_scCustom(seurat_object = E20, features = "AT21")
+
+FeaturePlot_scCustom(seurat_object = E20, features = "Basal1")
+
+FeaturePlot_scCustom(seurat_object = E20, features = "Ciliated1")
+
+FeaturePlot_scCustom(seurat_object = E20, features = "Deuterosomal1")
+
+FeaturePlot_scCustom(seurat_object = E20, features = "Goblet1")
+
+FeaturePlot_scCustom(seurat_object = E20, features = "Ionocyte1")
+
+FeaturePlot_scCustom(seurat_object = E20, features = "Suprabasal1")
+
+FeaturePlot_scCustom(seurat_object = E20, features = "MEC1")
+
+FeaturePlot_scCustom(seurat_object = E20, features = "Mucous1")
+
+FeaturePlot_scCustom(seurat_object = E20, features = "PNEC1")
+
+FeaturePlot_scCustom(seurat_object = E20, features = "RAS1")
+
+FeaturePlot_scCustom(seurat_object = E20, features = "Secretory1")
+
+FeaturePlot_scCustom(seurat_object = E20, features = "Serous1")
+
+FeaturePlot_scCustom(seurat_object = E20, features = "SMG_Basal1")
+
+FeaturePlot_scCustom(seurat_object = E20, features = "Tuft1")
+
+FeaturePlot_scCustom(seurat_object = E20, features = "AT01")
+
